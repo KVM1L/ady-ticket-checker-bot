@@ -70,10 +70,11 @@ Cloudflare реже видит "нового" посетителя при каж
 
 ```bash
 sudo useradd --system --create-home ady-bot
-sudo mkdir -p /opt/ady-ticket-bot
-sudo cp -r . /opt/ady-ticket-bot
-cd /opt/ady-ticket-bot
-sudo -u ady-bot python -m venv .venv
+sudo mkdir -p /opt/ady-ticket-checker-bot
+sudo cp -r . /opt/ady-ticket-checker-bot
+sudo chown -R ady-bot:ady-bot /opt/ady-ticket-checker-bot
+cd /opt/ady-ticket-checker-bot
+sudo -u ady-bot python3 -m venv .venv
 sudo -u ady-bot .venv/bin/pip install -r requirements.txt
 sudo -u ady-bot .venv/bin/python -m playwright install --with-deps chromium
 sudo cp deploy/ady-ticket-bot.service /etc/systemd/system/
@@ -81,6 +82,10 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now ady-ticket-bot
 sudo journalctl -u ady-ticket-bot -f
 ```
+
+Если используете `PLAYWRIGHT_CHANNEL=chrome` (см. ниже) — шаг
+`playwright install --with-deps chromium` не нужен, Chrome должен быть
+установлен системно (через apt/`.deb`), а не через сам Playwright.
 
 ## Если Playwright не может скачать Chromium (гео-блок CDN)
 
