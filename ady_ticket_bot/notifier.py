@@ -2,6 +2,8 @@ import logging
 
 import requests
 
+from .filters import Filter
+from .messaging import build_message
 from .subscribers import load_subscribers, save_subscribers
 
 log = logging.getLogger(__name__)
@@ -24,8 +26,10 @@ def send_telegram_message(token: str, chat_id: str, text: str) -> bool:
     return resp.status_code != 403
 
 
-def broadcast_message(token: str, subscribers_file: str, text: str) -> int:
-    """Sends text to every subscribed chat. Returns how many it was sent to."""
+def notify_subscribers(token: str, subscribers_file: str, snapshots: list) -> int:
+    """Builds a personalized message per subscriber (applying their price/date
+    filter) from this cycle's snapshots, and sends it if there's anything
+    relevant. Returns how many subscribers were actually sent a message."""
     subscribers = load_subscribers(subscribers_file)
     if not subscribers:
         log.info("No subscribers yet - nothing to send.")
@@ -33,14 +37,18 @@ def broadcast_message(token: str, subscribers_file: str, text: str) -> int:
 
     stale = set()
     sent = 0
-    for chat_id in subscribers:
-        if send_telegram_message(token, chat_id, text):
+    for chat_id, entry in subscribers.items():
+        message = build_message(snapshots, Filter.from_dict(entry))
+        if not message:
+            continue
+        if send_telegram_message(token, chat_id, message):
             sent += 1
         else:
             stale.add(chat_id)
 
     if stale:
-        save_subscribers(subscribers_file, subscribers - stale)
+        remaining = {cid: entry for cid, entry in subscribers.items() if cid not in stale}
+        save_subscribers(subscribers_file, remaining)
         log.info("Removed %d stale subscriber(s)", len(stale))
 
     return sent

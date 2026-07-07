@@ -1,15 +1,20 @@
 import json
 import os
 
-DEFAULT_STATE = {"offset": None, "chat_ids": []}
-
 
 def _load(path: str) -> dict:
     if not os.path.exists(path):
-        return dict(DEFAULT_STATE)
+        return {"offset": None, "subscribers": {}}
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
-    return {"offset": data.get("offset"), "chat_ids": list(data.get("chat_ids", []))}
+
+    if "subscribers" in data:
+        subscribers = dict(data.get("subscribers", {}))
+    else:
+        # Legacy format from before per-user filters: {"chat_ids": [...]}
+        subscribers = {chat_id: {} for chat_id in data.get("chat_ids", [])}
+
+    return {"offset": data.get("offset"), "subscribers": subscribers}
 
 
 def _save(path: str, state: dict) -> None:
@@ -20,13 +25,14 @@ def _save(path: str, state: dict) -> None:
     os.replace(tmp_file, path)
 
 
-def load_subscribers(path: str) -> set[str]:
-    return set(_load(path)["chat_ids"])
+def load_subscribers(path: str) -> dict:
+    """chat_id (str) -> filter dict (see filters.Filter.to_dict/from_dict)."""
+    return _load(path)["subscribers"]
 
 
-def save_subscribers(path: str, chat_ids: set[str]) -> None:
+def save_subscribers(path: str, subscribers: dict) -> None:
     state = _load(path)
-    state["chat_ids"] = sorted(chat_ids)
+    state["subscribers"] = subscribers
     _save(path, state)
 
 
