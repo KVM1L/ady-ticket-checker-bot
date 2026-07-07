@@ -1,0 +1,16 @@
+[Unit]
+Description=Ady.az Baku<->Tbilisi ticket watcher
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ady-bot
+WorkingDirectory=/opt/ady-ticket-bot
+EnvironmentFile=/opt/ady-ticket-bot/.env
+ExecStart=/opt/ady-ticket-bot/.venv/bin/python -m ady_ticket_bot.main
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
