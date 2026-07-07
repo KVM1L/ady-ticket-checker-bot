@@ -2,11 +2,14 @@ import argparse
 import logging
 import os
 import random
+import threading
 import time
 
 from .checker import check_for_new_tickets
 from .config import Config
-from .notifier import send_telegram_message
+from .notifier import broadcast_message
+from .subscribers import load_subscribers, save_subscribers
+from .telegram_updates import poll_updates_once
 
 
 def setup_logging(log_file: str) -> None:
@@ -18,14 +21,35 @@ def setup_logging(log_file: str) -> None:
     )
 
 
+def seed_owner_subscription(config: Config) -> None:
+    """One-time migration: if nobody has /start'd the bot yet but
+    TELEGRAM_CHAT_ID is set (the pre-subscriptions way of configuring this),
+    subscribe that chat automatically so notifications don't just stop."""
+    if not config.telegram_chat_id:
+        return
+    if os.path.exists(config.subscribers_file):
+        return
+    save_subscribers(config.subscribers_file, {config.telegram_chat_id})
+
+
+def run_subscriber_listener(config: Config) -> None:
+    log = logging.getLogger(__name__)
+    while True:
+        try:
+            poll_updates_once(config.telegram_bot_token, config.subscribers_file)
+        except Exception:
+            log.exception("Subscriber listener error, retrying shortly")
+            time.sleep(5)
+
+
 def run_once(config: Config) -> None:
     log = logging.getLogger(__name__)
     message = check_for_new_tickets(config)
     if not message:
         log.info("No changes.")
         return
-    send_telegram_message(config.telegram_bot_token, config.telegram_chat_id, message)
-    log.info("Sent notification.")
+    sent = broadcast_message(config.telegram_bot_token, config.subscribers_file, message)
+    log.info("Broadcast sent to %d subscriber(s).", sent)
 
 
 def main() -> None:
@@ -36,16 +60,21 @@ def main() -> None:
     config = Config()
     setup_logging(config.log_file)
     log = logging.getLogger(__name__)
+    seed_owner_subscription(config)
 
     if args.once:
         run_once(config)
         return
 
+    listener = threading.Thread(target=run_subscriber_listener, args=(config,), daemon=True)
+    listener.start()
+
     log.info(
-        "Starting poll loop: every %d (+/- %d) minutes, lookahead %d days",
+        "Starting poll loop: every %d (+/- %d) minutes, lookahead %d days, %d subscriber(s)",
         config.poll_interval_minutes,
         config.poll_jitter_minutes,
         config.lookahead_days,
+        len(load_subscribers(config.subscribers_file)),
     )
     while True:
         try:

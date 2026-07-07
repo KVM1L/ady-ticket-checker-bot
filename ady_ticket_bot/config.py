@@ -33,12 +33,16 @@ ROUTES = [
 @dataclass
 class Config:
     telegram_bot_token: str = field(default_factory=lambda: os.environ["TELEGRAM_BOT_TOKEN"])
-    telegram_chat_id: str = field(default_factory=lambda: os.environ["TELEGRAM_CHAT_ID"])
+    # Optional: only used to auto-subscribe the bot owner on first run, so
+    # they don't have to /start their own bot. Anyone else subscribes by
+    # sending /start to the bot in Telegram.
+    telegram_chat_id: str | None = field(default_factory=lambda: os.environ.get("TELEGRAM_CHAT_ID", "").strip() or None)
     poll_interval_minutes: int = field(default_factory=lambda: int(os.environ.get("POLL_INTERVAL_MINUTES", "30")))
     poll_jitter_minutes: int = field(default_factory=lambda: int(os.environ.get("POLL_JITTER_MINUTES", "5")))
     lookahead_days: int = field(default_factory=lambda: int(os.environ.get("LOOKAHEAD_DAYS", "60")))
     headless: bool = field(default_factory=lambda: os.environ.get("HEADLESS", "true").lower() != "false")
     state_file: str = field(default_factory=lambda: os.environ.get("STATE_FILE", os.path.join(BASE_DIR, "data", "state.json")))
+    subscribers_file: str = field(default_factory=lambda: os.environ.get("SUBSCRIBERS_FILE", os.path.join(BASE_DIR, "data", "subscribers.json")))
     browser_profile_dir: str = field(default_factory=lambda: os.environ.get("BROWSER_PROFILE_DIR", os.path.join(BASE_DIR, "data", "browser_profile")))
     log_file: str = field(default_factory=lambda: os.environ.get("LOG_FILE", os.path.join(BASE_DIR, "data", "ady_ticket_bot.log")))
     # Leave empty to use Playwright's bundled Chromium. Set to "chrome" to use
