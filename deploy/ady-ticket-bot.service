@@ -6,9 +6,9 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=ady-bot
-WorkingDirectory=/opt/ady-ticket-bot
-EnvironmentFile=/opt/ady-ticket-bot/.env
-ExecStart=/opt/ady-ticket-bot/.venv/bin/python -m ady_ticket_bot.main
+WorkingDirectory=/opt/ady-ticket-checker-bot
+EnvironmentFile=/opt/ady-ticket-checker-bot/.env
+ExecStart=/opt/ady-ticket-checker-bot/.venv/bin/python -m ady_ticket_bot.main
 Restart=on-failure
 RestartSec=30
 
