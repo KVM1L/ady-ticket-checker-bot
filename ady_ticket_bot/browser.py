@@ -14,12 +14,14 @@ USER_AGENT = (
 
 
 def open_context(playwright, config: Config) -> BrowserContext:
-    return playwright.chromium.launch_persistent_context(
-        config.browser_profile_dir,
+    kwargs = dict(
         headless=config.headless,
         user_agent=USER_AGENT,
         viewport={"width": 1280, "height": 800},
     )
+    if config.browser_channel:
+        kwargs["channel"] = config.browser_channel
+    return playwright.chromium.launch_persistent_context(config.browser_profile_dir, **kwargs)
 
 
 def fetch_trip_dates(page: Page, origin: Station, destination: Station) -> list[dict]:

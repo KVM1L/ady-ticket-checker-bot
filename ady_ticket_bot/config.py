@@ -41,3 +41,7 @@ class Config:
     state_file: str = field(default_factory=lambda: os.environ.get("STATE_FILE", os.path.join(BASE_DIR, "data", "state.json")))
     browser_profile_dir: str = field(default_factory=lambda: os.environ.get("BROWSER_PROFILE_DIR", os.path.join(BASE_DIR, "data", "browser_profile")))
     log_file: str = field(default_factory=lambda: os.environ.get("LOG_FILE", os.path.join(BASE_DIR, "data", "ady_ticket_bot.log")))
+    # Leave empty to use Playwright's bundled Chromium. Set to "chrome" to use
+    # a system-installed Google Chrome instead (useful where Playwright's own
+    # download CDN is geo-blocked) - see README.
+    browser_channel: str = field(default_factory=lambda: os.environ.get("PLAYWRIGHT_CHANNEL", "").strip() or None)
