@@ -31,6 +31,7 @@ FILTER_PANEL = {
     "inline_keyboard": [
         [{"text": "📅 Установить фильтр по дате", "callback_data": "filter:ask:date"}],
         [{"text": "💰 Установить фильтр по цене (не более)", "callback_data": "filter:ask:price"}],
+        [{"text": "♻️ Сбросить все фильтры", "callback_data": "filter:reset"}],
     ]
 }
 
@@ -69,6 +70,10 @@ def _handle_callback(token: str, callback_query: dict, subscribers: dict) -> boo
                     "01-07-2026 15-08-2026. Чтобы снять ограничение — отправьте 0."
                 ),
             )
+        elif data == "filter:reset":
+            entry.clear()
+            changed = True
+            _call(token, "sendMessage", chat_id=chat_id, text="✅ Все фильтры сброшены, буду показывать все билеты.")
 
     _call(token, "answerCallbackQuery", callback_query_id=callback_id)
     return changed
