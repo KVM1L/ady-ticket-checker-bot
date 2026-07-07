@@ -1,4 +1,5 @@
 import logging
+import time
 
 from playwright.sync_api import BrowserContext, Page, sync_playwright
 
@@ -33,6 +34,13 @@ def fetch_trip_dates(page: Page, origin: Station, destination: Station) -> list[
     or [] if the route currently has no bookable dates.
     """
     page.goto(HOME_URL, wait_until="load", timeout=60000)
+    try:
+        # Servers on datacenter IPs can sit behind Cloudflare longer than a
+        # residential IP does - wait for the page to actually go quiet instead
+        # of a fixed sleep, but don't fail the whole attempt if it never does.
+        page.wait_for_load_state("networkidle", timeout=15000)
+    except Exception:
+        pass
     page.wait_for_timeout(4000)
 
     # NB: the site's CSS class names are swapped relative to the field labels -
@@ -74,7 +82,8 @@ def run_check(config: Config, routes) -> dict:
             page = context.new_page()
             for origin, destination in routes:
                 dates = None
-                for attempt in range(2):
+                attempts = 3
+                for attempt in range(attempts):
                     try:
                         dates = fetch_trip_dates(page, origin, destination)
                         break
@@ -83,6 +92,8 @@ def run_check(config: Config, routes) -> dict:
                             "Attempt %d failed fetching %s -> %s", attempt + 1, origin.name, destination.name,
                             exc_info=True,
                         )
+                        if attempt < attempts - 1:
+                            time.sleep(10)
                 results[(origin.name, destination.name)] = dates
         finally:
             context.close()
