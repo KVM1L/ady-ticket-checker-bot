@@ -20,13 +20,12 @@ def setup_logging(log_file: str) -> None:
 
 def run_once(config: Config) -> None:
     log = logging.getLogger(__name__)
-    messages = check_for_new_tickets(config)
-    if not messages:
-        log.info("No new tickets found.")
+    message = check_for_new_tickets(config)
+    if not message:
+        log.info("No changes.")
         return
-    for message in messages:
-        send_telegram_message(config.telegram_bot_token, config.telegram_chat_id, message)
-    log.info("Sent %d notification(s).", len(messages))
+    send_telegram_message(config.telegram_bot_token, config.telegram_chat_id, message)
+    log.info("Sent notification.")
 
 
 def main() -> None:
