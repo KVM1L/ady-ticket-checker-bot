@@ -34,14 +34,6 @@ def fetch_trip_dates(page: Page, origin: Station, destination: Station) -> list[
     or [] if the route currently has no bookable dates.
     """
     page.goto(HOME_URL, wait_until="load", timeout=60000)
-    try:
-        # Servers on datacenter IPs can sit behind Cloudflare longer than a
-        # residential IP does - wait for the page to actually go quiet instead
-        # of a fixed sleep, but don't fail the whole attempt if it never does.
-        page.wait_for_load_state("networkidle", timeout=15000)
-    except Exception:
-        pass
-    page.wait_for_timeout(4000)
 
     # NB: the site's CSS class names are swapped relative to the field labels -
     # ".form-group--to" is the "Haradan" (origin) field and ".form-group--from"
@@ -49,7 +41,14 @@ def fetch_trip_dates(page: Page, origin: Station, destination: Station) -> list[
     origin_group = page.locator(".form-group--to")
     destination_group = page.locator(".form-group--from")
 
-    origin_group.locator("input").click(timeout=45000)
+    # Cloudflare occasionally shows a "you are in line" waiting-room
+    # interstitial instead of the real page - it self-refreshes every few
+    # seconds until let through. Wait for the real form to actually show up
+    # instead of a fixed sleep, generously covering the site's own quoted
+    # wait estimate (it's usually a couple of minutes).
+    origin_group.locator("input").wait_for(state="visible", timeout=180000)
+
+    origin_group.locator("input").click(timeout=15000)
     origin_group.locator(f"button:has-text('{origin.name}')").first.click(timeout=15000)
 
     destination_group.locator("input").click(timeout=15000)
@@ -82,7 +81,7 @@ def run_check(config: Config, routes) -> dict:
             page = context.new_page()
             for origin, destination in routes:
                 dates = None
-                attempts = 3
+                attempts = 2
                 for attempt in range(attempts):
                     try:
                         dates = fetch_trip_dates(page, origin, destination)
