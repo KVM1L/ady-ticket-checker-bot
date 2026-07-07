@@ -7,7 +7,7 @@ import time
 
 from .checker import check_for_new_tickets
 from .config import Config
-from .notifier import broadcast_message
+from .notifier import notify_subscribers
 from .subscribers import load_subscribers, save_subscribers
 from .telegram_updates import poll_updates_once
 
@@ -29,7 +29,7 @@ def seed_owner_subscription(config: Config) -> None:
         return
     if os.path.exists(config.subscribers_file):
         return
-    save_subscribers(config.subscribers_file, {config.telegram_chat_id})
+    save_subscribers(config.subscribers_file, {config.telegram_chat_id: {}})
 
 
 def run_subscriber_listener(config: Config) -> None:
@@ -44,12 +44,9 @@ def run_subscriber_listener(config: Config) -> None:
 
 def run_once(config: Config) -> None:
     log = logging.getLogger(__name__)
-    message = check_for_new_tickets(config)
-    if not message:
-        log.info("No changes.")
-        return
-    sent = broadcast_message(config.telegram_bot_token, config.subscribers_file, message)
-    log.info("Broadcast sent to %d subscriber(s).", sent)
+    snapshots = check_for_new_tickets(config)
+    sent = notify_subscribers(config.telegram_bot_token, config.subscribers_file, snapshots)
+    log.info("Notified %d subscriber(s).", sent)
 
 
 def main() -> None:
