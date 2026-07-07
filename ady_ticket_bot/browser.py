@@ -35,6 +35,13 @@ def fetch_trip_dates(page: Page, origin: Station, destination: Station) -> list[
     """
     page.goto(HOME_URL, wait_until="load", timeout=60000)
 
+    # The fixed header and the full-page loading overlay both sit on top of
+    # the form and intercept Playwright's clicks after it auto-scrolls the
+    # target into view, even once the form itself is visible and usable.
+    # Neither is something we ever need to click, so just make them
+    # click-through for the rest of this page's lifetime.
+    page.add_style_tag(content=".header, .full-page-loader { pointer-events: none !important; }")
+
     # NB: the site's CSS class names are swapped relative to the field labels -
     # ".form-group--to" is the "Haradan" (origin) field and ".form-group--from"
     # is the "Haraya" (destination) field. Confirmed by inspecting the live DOM.
