@@ -82,6 +82,26 @@ sudo systemctl enable --now ady-ticket-bot
 sudo journalctl -u ady-ticket-bot -f
 ```
 
+## Если Playwright не может скачать Chromium (гео-блок CDN)
+
+`playwright install` качает браузер с `cdn.playwright.dev`, и в некоторых
+странах/у некоторых хостеров этот CDN отвечает `403 Access denied ... not
+available in your location`. Обход — использовать системный Google Chrome
+вместо бандла Playwright:
+
+```bash
+wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -O /tmp/chrome.deb
+sudo apt-get install -y /tmp/chrome.deb   # тянет зависимости из уже настроенных репозиториев
+```
+
+Затем в `.env` укажите:
+
+```
+PLAYWRIGHT_CHANNEL=chrome
+```
+
+Бот подхватит системный Chrome вместо попытки скачать свой Chromium.
+
 ## Заметки
 
 - Маршрут (Bakı ⇄ Tbilisi, id станций 232/170) захардкожен в
