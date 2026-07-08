@@ -39,6 +39,7 @@ def _main_panel(entry: dict) -> dict:
             [{"text": "📅 Установить фильтр по дате", "callback_data": "filter:ask:date"}],
             [{"text": "💰 Установить фильтр по цене (не более)", "callback_data": "filter:ask:price"}],
             [{"text": "♻️ Сбросить все фильтры", "callback_data": "filter:reset"}],
+            [{"text": "❌ Закрыть", "callback_data": "filter:close"}],
         ]
     }
 
@@ -95,6 +96,13 @@ def _handle_callback(token: str, callback_query: dict, subscribers: dict) -> boo
             entry.clear()
             changed = True
             _call(token, "sendMessage", chat_id=chat_id, text="✅ Все фильтры сброшены, буду показывать все билеты.")
+        elif data == "filter:close":
+            message_id = message.get("message_id")
+            if message_id is not None:
+                _call(
+                    token, "editMessageReplyMarkup", chat_id=chat_id, message_id=message_id,
+                    reply_markup={"inline_keyboard": []},
+                )
         elif data == "filter:menu:directions":
             message_id = message.get("message_id")
             if message_id is not None:
