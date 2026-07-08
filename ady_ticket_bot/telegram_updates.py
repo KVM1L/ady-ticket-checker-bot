@@ -32,16 +32,25 @@ HELP_TEXT = (
 
 RESET_WORDS = ("0", "off", "выкл", "нет")
 
-def _filter_panel(entry: dict) -> dict:
+def _main_panel(entry: dict) -> dict:
+    return {
+        "inline_keyboard": [
+            [{"text": "🧭 Направления", "callback_data": "filter:menu:directions"}],
+            [{"text": "📅 Установить фильтр по дате", "callback_data": "filter:ask:date"}],
+            [{"text": "💰 Установить фильтр по цене (не более)", "callback_data": "filter:ask:price"}],
+            [{"text": "♻️ Сбросить все фильтры", "callback_data": "filter:reset"}],
+        ]
+    }
+
+
+def _directions_panel(entry: dict) -> dict:
     active = entry.get("directions")
     buttons = []
     for i, label in enumerate(DIRECTION_LABELS):
         is_on = active is None or label in active
         mark = "✅" if is_on else "⬜"
         buttons.append([{"text": f"{mark} {label}", "callback_data": f"filter:dir:{i}"}])
-    buttons.append([{"text": "📅 Установить фильтр по дате", "callback_data": "filter:ask:date"}])
-    buttons.append([{"text": "💰 Установить фильтр по цене (не более)", "callback_data": "filter:ask:price"}])
-    buttons.append([{"text": "♻️ Сбросить все фильтры", "callback_data": "filter:reset"}])
+    buttons.append([{"text": "⬅️ Назад", "callback_data": "filter:menu:main"}])
     return {"inline_keyboard": buttons}
 
 
@@ -86,6 +95,24 @@ def _handle_callback(token: str, callback_query: dict, subscribers: dict) -> boo
             entry.clear()
             changed = True
             _call(token, "sendMessage", chat_id=chat_id, text="✅ Все фильтры сброшены, буду показывать все билеты.")
+        elif data == "filter:menu:directions":
+            message_id = message.get("message_id")
+            if message_id is not None:
+                filt = Filter.from_dict(entry)
+                _call(
+                    token, "editMessageText", chat_id=chat_id, message_id=message_id,
+                    text=f"Текущий фильтр: {filt.describe()}",
+                    reply_markup=_directions_panel(entry),
+                )
+        elif data == "filter:menu:main":
+            message_id = message.get("message_id")
+            if message_id is not None:
+                filt = Filter.from_dict(entry)
+                _call(
+                    token, "editMessageText", chat_id=chat_id, message_id=message_id,
+                    text=f"Текущий фильтр: {filt.describe()}",
+                    reply_markup=_main_panel(entry),
+                )
         elif data.startswith("filter:dir:"):
             idx = int(data.rsplit(":", 1)[1])
             label = DIRECTION_LABELS[idx]
@@ -106,7 +133,7 @@ def _handle_callback(token: str, callback_query: dict, subscribers: dict) -> boo
                     _call(
                         token, "editMessageText", chat_id=chat_id, message_id=message_id,
                         text=f"Текущий фильтр: {filt.describe()}",
-                        reply_markup=_filter_panel(entry),
+                        reply_markup=_directions_panel(entry),
                     )
 
     _call(token, "answerCallbackQuery", callback_query_id=callback_id, text=answer_text)
@@ -232,7 +259,7 @@ def poll_updates_once(token: str, subscribers_file: str) -> None:
             _call(
                 token, "sendMessage", chat_id=chat_id,
                 text=f"Текущий фильтр: {filt.describe()}",
-                reply_markup=_filter_panel(entry),
+                reply_markup=_main_panel(entry),
             )
         elif command == "/help":
             _call(token, "sendMessage", chat_id=chat_id, text=HELP_TEXT)
