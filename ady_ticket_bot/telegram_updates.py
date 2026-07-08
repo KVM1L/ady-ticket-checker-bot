@@ -101,7 +101,7 @@ def _handle_callback(token: str, callback_query: dict, subscribers: dict) -> boo
                 filt = Filter.from_dict(entry)
                 _call(
                     token, "editMessageText", chat_id=chat_id, message_id=message_id,
-                    text=f"Текущий фильтр: {filt.describe()}",
+                    text=f"Текущий фильтр:\n{filt.describe()}",
                     reply_markup=_directions_panel(entry),
                 )
         elif data == "filter:menu:main":
@@ -110,7 +110,7 @@ def _handle_callback(token: str, callback_query: dict, subscribers: dict) -> boo
                 filt = Filter.from_dict(entry)
                 _call(
                     token, "editMessageText", chat_id=chat_id, message_id=message_id,
-                    text=f"Текущий фильтр: {filt.describe()}",
+                    text=f"Текущий фильтр:\n{filt.describe()}",
                     reply_markup=_main_panel(entry),
                 )
         elif data.startswith("filter:dir:"):
@@ -132,7 +132,7 @@ def _handle_callback(token: str, callback_query: dict, subscribers: dict) -> boo
                     filt = Filter.from_dict(entry)
                     _call(
                         token, "editMessageText", chat_id=chat_id, message_id=message_id,
-                        text=f"Текущий фильтр: {filt.describe()}",
+                        text=f"Текущий фильтр:\n{filt.describe()}",
                         reply_markup=_directions_panel(entry),
                     )
 
@@ -258,7 +258,7 @@ def poll_updates_once(token: str, subscribers_file: str) -> None:
             filt = Filter.from_dict(entry)
             _call(
                 token, "sendMessage", chat_id=chat_id,
-                text=f"Текущий фильтр: {filt.describe()}",
+                text=f"Текущий фильтр:\n{filt.describe()}",
                 reply_markup=_main_panel(entry),
             )
         elif command == "/help":

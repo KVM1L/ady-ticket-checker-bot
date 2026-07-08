@@ -55,5 +55,5 @@ def build_message(snapshots: list, filt: Filter) -> str | None:
 
     blocks = ["🚆 <b>Bakı ⇄ Tbilisi — билеты на ближайшие 2 месяца</b>"]
     blocks.extend(sections)
-    blocks.append(f"<i>Ваш фильтр: {filt.describe()}</i>\n/filter — изменить")
+    blocks.append(f"<i>Ваш фильтр:\n{filt.describe()}</i>\n/filter — изменить")
     return "\n\n".join(blocks)
