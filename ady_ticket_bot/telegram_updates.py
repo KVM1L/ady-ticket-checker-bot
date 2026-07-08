@@ -29,7 +29,6 @@ RESET_WORDS = ("0", "off", "выкл", "нет")
 
 FILTER_PANEL = {
     "inline_keyboard": [
-        [{"text": "📋 Показать установленные фильтры", "callback_data": "filter:show"}],
         [{"text": "📅 Установить фильтр по дате", "callback_data": "filter:ask:date"}],
         [{"text": "💰 Установить фильтр по цене (не более)", "callback_data": "filter:ask:price"}],
         [{"text": "♻️ Сбросить все фильтры", "callback_data": "filter:reset"}],
@@ -54,10 +53,7 @@ def _handle_callback(token: str, callback_query: dict, subscribers: dict) -> boo
         chat_id = str(chat_id)
         entry = subscribers.setdefault(chat_id, {})
 
-        if data == "filter:show":
-            filt = Filter.from_dict(entry)
-            _call(token, "sendMessage", chat_id=chat_id, text=f"Ваш текущий фильтр: {filt.describe()}")
-        elif data == "filter:ask:price":
+        if data == "filter:ask:price":
             entry["pending"] = "price"
             changed = True
             _call(

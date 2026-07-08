@@ -41,9 +41,6 @@ def build_message(snapshots: list, filt: Filter) -> str | None:
             sold_out_lines.append(f"❌ {trip_date} ({price} AZN)")
             has_change = True
 
-        if not rows and not sold_out_lines:
-            continue  # nothing in this route matches this subscriber's filter
-
         table = "\n".join(rows) if rows else "нет билетов"
         section = f"<b>{snap.origin_display} → {snap.destination_display}</b>\n<pre>{table}</pre>"
         if sold_out_lines:
