@@ -34,15 +34,15 @@ class Filter:
             return "без фильтров (показываю все билеты)"
         parts = []
         if self.directions is not None:
-            parts.append("направление: " + ", ".join(sorted(self.directions)))
-        if self.max_price is not None:
-            parts.append(f"цена ≤ {self.max_price:g} AZN")
+            parts.append("Направление: " + ", ".join(sorted(self.directions)))
         if self.date_from and self.date_from == self.date_to:
-            parts.append(f"дата {self.date_from.strftime('%d-%m-%Y')}")
+            parts.append(f"Дата: {self.date_from.strftime('%d-%m-%Y')}")
         elif self.date_from or self.date_to:
             frm = self.date_from.strftime("%d-%m-%Y") if self.date_from else "…"
             to = self.date_to.strftime("%d-%m-%Y") if self.date_to else "…"
-            parts.append(f"даты {frm} – {to}")
+            parts.append(f"Даты: {frm} – {to}")
+        if self.max_price is not None:
+            parts.append(f"Цена: ≤ {self.max_price:g} AZN")
         return "\n".join(parts)
 
     def to_dict(self) -> dict:
