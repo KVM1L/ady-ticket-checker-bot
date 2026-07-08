@@ -43,7 +43,7 @@ class Filter:
             frm = self.date_from.strftime("%d-%m-%Y") if self.date_from else "…"
             to = self.date_to.strftime("%d-%m-%Y") if self.date_to else "…"
             parts.append(f"даты {frm} – {to}")
-        return "; ".join(parts)
+        return "\n".join(parts)
 
     def to_dict(self) -> dict:
         d = {}
