@@ -26,7 +26,9 @@ class Filter:
         parts = []
         if self.max_price is not None:
             parts.append(f"цена ≤ {self.max_price:g} AZN")
-        if self.date_from or self.date_to:
+        if self.date_from and self.date_from == self.date_to:
+            parts.append(f"дата {self.date_from.strftime('%d-%m-%Y')}")
+        elif self.date_from or self.date_to:
             frm = self.date_from.strftime("%d-%m-%Y") if self.date_from else "…"
             to = self.date_to.strftime("%d-%m-%Y") if self.date_to else "…"
             parts.append(f"даты {frm} – {to}")
