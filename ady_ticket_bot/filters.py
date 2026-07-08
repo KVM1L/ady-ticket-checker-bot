@@ -7,6 +7,7 @@ class Filter:
     max_price: float | None = None
     date_from: datetime.date | None = None
     date_to: datetime.date | None = None
+    directions: set | None = None  # None = all directions; else set of RouteSnapshot.label values
 
     def matches(self, trip_date: datetime.date, price: float) -> bool:
         if self.max_price is not None and price > self.max_price:
@@ -17,13 +18,23 @@ class Filter:
             return False
         return True
 
+    def allows_direction(self, label: str) -> bool:
+        return self.directions is None or label in self.directions
+
     def is_empty(self) -> bool:
-        return self.max_price is None and self.date_from is None and self.date_to is None
+        return (
+            self.max_price is None
+            and self.date_from is None
+            and self.date_to is None
+            and self.directions is None
+        )
 
     def describe(self) -> str:
         if self.is_empty():
             return "без фильтров (показываю все билеты)"
         parts = []
+        if self.directions is not None:
+            parts.append("направление: " + ", ".join(sorted(self.directions)))
         if self.max_price is not None:
             parts.append(f"цена ≤ {self.max_price:g} AZN")
         if self.date_from and self.date_from == self.date_to:
@@ -36,6 +47,8 @@ class Filter:
 
     def to_dict(self) -> dict:
         d = {}
+        if self.directions is not None:
+            d["directions"] = sorted(self.directions)
         if self.max_price is not None:
             d["max_price"] = self.max_price
         if self.date_from is not None:
@@ -49,8 +62,10 @@ class Filter:
         def parse_date(s):
             return datetime.datetime.strptime(s, "%d-%m-%Y").date() if s else None
 
+        directions = d.get("directions")
         return cls(
             max_price=d.get("max_price"),
             date_from=parse_date(d.get("date_from")),
             date_to=parse_date(d.get("date_to")),
+            directions=set(directions) if directions is not None else None,
         )
