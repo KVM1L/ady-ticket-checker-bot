@@ -20,6 +20,9 @@ def build_message(snapshots: list, filt: Filter) -> str | None:
     has_change = False
 
     for snap in snapshots:
+        if not filt.allows_direction(snap.label):
+            continue  # subscriber isn't interested in this direction at all
+
         if snap.fetch_failed:
             sections.append(f"<b>{snap.origin_display} → {snap.destination_display}</b>\n<pre>не удалось получить данные</pre>")
             continue

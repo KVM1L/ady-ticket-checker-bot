@@ -18,6 +18,12 @@ class RouteSnapshot:
     sold_out: list = field(default_factory=list)  # [(trip_date, last_price), ...]
     fetch_failed: bool = False
 
+    @property
+    def label(self) -> str:
+        """Stable, human-readable identifier for this route - used both for
+        display and as the value stored in a subscriber's direction filter."""
+        return f"{self.origin_display} → {self.destination_display}"
+
 
 def route_key(origin, destination) -> str:
     return f"{origin.name}->{destination.name}"

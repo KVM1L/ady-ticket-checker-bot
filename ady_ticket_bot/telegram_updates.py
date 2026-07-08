@@ -3,6 +3,7 @@ import logging
 
 import requests
 
+from .config import ROUTES
 from .filters import Filter
 from .subscribers import load_offset, load_subscribers, save_offset, save_subscribers
 
@@ -10,6 +11,10 @@ log = logging.getLogger(__name__)
 
 TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
 LONG_POLL_SECONDS = 25
+
+# Stable labels identifying each direction - also used as the values stored
+# in a subscriber's `directions` filter (see filters.Filter / checker.RouteSnapshot.label).
+DIRECTION_LABELS = [f"{o.display} → {d.display}" for o, d in ROUTES]
 
 WELCOME_TEXT = (
     "✅ Подписка оформлена.\n"
@@ -27,13 +32,17 @@ HELP_TEXT = (
 
 RESET_WORDS = ("0", "off", "выкл", "нет")
 
-FILTER_PANEL = {
-    "inline_keyboard": [
-        [{"text": "📅 Установить фильтр по дате", "callback_data": "filter:ask:date"}],
-        [{"text": "💰 Установить фильтр по цене (не более)", "callback_data": "filter:ask:price"}],
-        [{"text": "♻️ Сбросить все фильтры", "callback_data": "filter:reset"}],
-    ]
-}
+def _filter_panel(entry: dict) -> dict:
+    active = entry.get("directions")
+    buttons = []
+    for i, label in enumerate(DIRECTION_LABELS):
+        is_on = active is None or label in active
+        mark = "✅" if is_on else "⬜"
+        buttons.append([{"text": f"{mark} {label}", "callback_data": f"filter:dir:{i}"}])
+    buttons.append([{"text": "📅 Установить фильтр по дате", "callback_data": "filter:ask:date"}])
+    buttons.append([{"text": "💰 Установить фильтр по цене (не более)", "callback_data": "filter:ask:price"}])
+    buttons.append([{"text": "♻️ Сбросить все фильтры", "callback_data": "filter:reset"}])
+    return {"inline_keyboard": buttons}
 
 
 def _call(token: str, method: str, **params) -> dict:
@@ -45,9 +54,11 @@ def _call(token: str, method: str, **params) -> dict:
 
 def _handle_callback(token: str, callback_query: dict, subscribers: dict) -> bool:
     callback_id = callback_query["id"]
-    chat_id = (callback_query.get("message") or {}).get("chat", {}).get("id")
+    message = callback_query.get("message") or {}
+    chat_id = message.get("chat", {}).get("id")
     data = callback_query.get("data", "")
     changed = False
+    answer_text = ""
 
     if chat_id is not None:
         chat_id = str(chat_id)
@@ -75,8 +86,30 @@ def _handle_callback(token: str, callback_query: dict, subscribers: dict) -> boo
             entry.clear()
             changed = True
             _call(token, "sendMessage", chat_id=chat_id, text="✅ Все фильтры сброшены, буду показывать все билеты.")
+        elif data.startswith("filter:dir:"):
+            idx = int(data.rsplit(":", 1)[1])
+            label = DIRECTION_LABELS[idx]
+            active = set(entry["directions"]) if entry.get("directions") is not None else set(DIRECTION_LABELS)
 
-    _call(token, "answerCallbackQuery", callback_query_id=callback_id)
+            if label in active and len(active) == 1:
+                answer_text = "Нельзя отключить все направления сразу."
+            else:
+                active.symmetric_difference_update({label})
+                if active == set(DIRECTION_LABELS):
+                    entry.pop("directions", None)
+                else:
+                    entry["directions"] = sorted(active)
+                changed = True
+                message_id = message.get("message_id")
+                if message_id is not None:
+                    filt = Filter.from_dict(entry)
+                    _call(
+                        token, "editMessageText", chat_id=chat_id, message_id=message_id,
+                        text=f"Текущий фильтр: {filt.describe()}",
+                        reply_markup=_filter_panel(entry),
+                    )
+
+    _call(token, "answerCallbackQuery", callback_query_id=callback_id, text=answer_text)
     return changed
 
 
@@ -199,7 +232,7 @@ def poll_updates_once(token: str, subscribers_file: str) -> None:
             _call(
                 token, "sendMessage", chat_id=chat_id,
                 text=f"Текущий фильтр: {filt.describe()}",
-                reply_markup=FILTER_PANEL,
+                reply_markup=_filter_panel(entry),
             )
         elif command == "/help":
             _call(token, "sendMessage", chat_id=chat_id, text=HELP_TEXT)
