@@ -148,14 +148,12 @@ def _handle_pending_reply(token: str, chat_id: str, entry: dict, text: str) -> N
     if pending == "price":
         if text.lower() in RESET_WORDS:
             entry.pop("max_price", None)
-            reply = "✅ Ограничение по цене снято."
         else:
             try:
                 value = float(text.replace(",", "."))
                 if value <= 0:
                     raise ValueError
                 entry["max_price"] = value
-                reply = f"✅ Буду показывать билеты дешевле {value:g} AZN."
             except ValueError:
                 entry["pending"] = "price"
                 ok = False
@@ -165,7 +163,6 @@ def _handle_pending_reply(token: str, chat_id: str, entry: dict, text: str) -> N
         if text.lower() in RESET_WORDS:
             entry.pop("date_from", None)
             entry.pop("date_to", None)
-            reply = "✅ Ограничение по датам снято."
         else:
             parts = text.split()
             try:
@@ -180,10 +177,6 @@ def _handle_pending_reply(token: str, chat_id: str, entry: dict, text: str) -> N
                     raise ValueError
                 entry["date_from"] = d_from.strftime("%d-%m-%Y")
                 entry["date_to"] = d_to.strftime("%d-%m-%Y")
-                if d_from == d_to:
-                    reply = f"✅ Буду показывать билеты только на {entry['date_from']}."
-                else:
-                    reply = f"✅ Буду показывать билеты с {entry['date_from']} по {entry['date_to']}."
             except ValueError:
                 entry["pending"] = "date"
                 ok = False
@@ -194,8 +187,11 @@ def _handle_pending_reply(token: str, chat_id: str, entry: dict, text: str) -> N
     else:
         return
 
-    # On success, bring the panel back with the reply so the subscriber can
-    # keep adjusting filters without having to send /filter again.
+    # On success, show the same "current filter" summary + panel used
+    # everywhere else, so the subscriber can keep adjusting right away.
+    if ok:
+        filt = Filter.from_dict(entry)
+        reply = f"Текущий фильтр:\n{filt.describe()}"
     kwargs = {"reply_markup": _main_panel(entry)} if ok else {}
     _call(token, "sendMessage", chat_id=chat_id, text=reply, **kwargs)
 
