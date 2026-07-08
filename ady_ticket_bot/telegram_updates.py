@@ -143,6 +143,7 @@ def _handle_callback(token: str, callback_query: dict, subscribers: dict) -> boo
 def _handle_pending_reply(token: str, chat_id: str, entry: dict, text: str) -> None:
     pending = entry.pop("pending", None)
     text = text.strip()
+    ok = True
 
     if pending == "price":
         if text.lower() in RESET_WORDS:
@@ -157,11 +158,10 @@ def _handle_pending_reply(token: str, chat_id: str, entry: dict, text: str) -> N
                 reply = f"✅ Буду показывать билеты дешевле {value:g} AZN."
             except ValueError:
                 entry["pending"] = "price"
+                ok = False
                 reply = "Не понял цену. Введите число, например 150 (или 0, чтобы снять ограничение)."
-        _call(token, "sendMessage", chat_id=chat_id, text=reply)
-        return
 
-    if pending == "date":
+    elif pending == "date":
         if text.lower() in RESET_WORDS:
             entry.pop("date_from", None)
             entry.pop("date_to", None)
@@ -186,11 +186,18 @@ def _handle_pending_reply(token: str, chat_id: str, entry: dict, text: str) -> N
                     reply = f"✅ Буду показывать билеты с {entry['date_from']} по {entry['date_to']}."
             except ValueError:
                 entry["pending"] = "date"
+                ok = False
                 reply = (
                     "Не понял даты. Формат: ДД-ММ-ГГГГ (одна дата) или ДД-ММ-ГГГГ ДД-ММ-ГГГГ (диапазон), "
                     "например: 01-07-2026 или 01-07-2026 15-08-2026 (или 0, чтобы снять ограничение)."
                 )
-        _call(token, "sendMessage", chat_id=chat_id, text=reply)
+    else:
+        return
+
+    # On success, bring the panel back with the reply so the subscriber can
+    # keep adjusting filters without having to send /filter again.
+    kwargs = {"reply_markup": _main_panel(entry)} if ok else {}
+    _call(token, "sendMessage", chat_id=chat_id, text=reply, **kwargs)
 
 
 def poll_updates_once(token: str, subscribers_file: str) -> None:
