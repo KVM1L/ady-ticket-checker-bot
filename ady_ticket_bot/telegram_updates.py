@@ -66,8 +66,9 @@ def _handle_callback(token: str, callback_query: dict, subscribers: dict) -> boo
             _call(
                 token, "sendMessage", chat_id=chat_id,
                 text=(
-                    "Введите диапазон дат в формате ДД-ММ-ГГГГ ДД-ММ-ГГГГ, например: "
-                    "01-07-2026 15-08-2026. Чтобы снять ограничение — отправьте 0."
+                    "Введите дату в формате ДД-ММ-ГГГГ (например: 01-07-2026 — только эта дата) "
+                    "или диапазон ДД-ММ-ГГГГ ДД-ММ-ГГГГ (например: 01-07-2026 15-08-2026). "
+                    "Чтобы снять ограничение — отправьте 0."
                 ),
             )
         elif data == "filter:reset":
@@ -108,20 +109,26 @@ def _handle_pending_reply(token: str, chat_id: str, entry: dict, text: str) -> N
         else:
             parts = text.split()
             try:
-                if len(parts) != 2:
+                if len(parts) == 1:
+                    d_from = d_to = datetime.datetime.strptime(parts[0], "%d-%m-%Y").date()
+                elif len(parts) == 2:
+                    d_from = datetime.datetime.strptime(parts[0], "%d-%m-%Y").date()
+                    d_to = datetime.datetime.strptime(parts[1], "%d-%m-%Y").date()
+                    if d_from > d_to:
+                        d_from, d_to = d_to, d_from
+                else:
                     raise ValueError
-                d_from = datetime.datetime.strptime(parts[0], "%d-%m-%Y").date()
-                d_to = datetime.datetime.strptime(parts[1], "%d-%m-%Y").date()
-                if d_from > d_to:
-                    d_from, d_to = d_to, d_from
                 entry["date_from"] = d_from.strftime("%d-%m-%Y")
                 entry["date_to"] = d_to.strftime("%d-%m-%Y")
-                reply = f"✅ Буду показывать билеты с {entry['date_from']} по {entry['date_to']}."
+                if d_from == d_to:
+                    reply = f"✅ Буду показывать билеты только на {entry['date_from']}."
+                else:
+                    reply = f"✅ Буду показывать билеты с {entry['date_from']} по {entry['date_to']}."
             except ValueError:
                 entry["pending"] = "date"
                 reply = (
-                    "Не понял даты. Формат: ДД-ММ-ГГГГ ДД-ММ-ГГГГ, например: "
-                    "01-07-2026 15-08-2026 (или 0, чтобы снять ограничение)."
+                    "Не понял даты. Формат: ДД-ММ-ГГГГ (одна дата) или ДД-ММ-ГГГГ ДД-ММ-ГГГГ (диапазон), "
+                    "например: 01-07-2026 или 01-07-2026 15-08-2026 (или 0, чтобы снять ограничение)."
                 )
         _call(token, "sendMessage", chat_id=chat_id, text=reply)
 
