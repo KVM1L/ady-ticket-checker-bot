@@ -50,6 +50,7 @@ def check_for_new_tickets(config: Config) -> list[RouteSnapshot]:
         dates = results.get((origin.name, destination.name))
 
         if dates is None:
+            log.warning("%s: fetch failed this cycle, state left untouched", route_key(origin, destination))
             snapshots.append(RouteSnapshot(origin.display, destination.display, fetch_failed=True))
             continue  # fetch failed this cycle; leave state untouched, retry next time
 
@@ -78,6 +79,14 @@ def check_for_new_tickets(config: Config) -> list[RouteSnapshot]:
         sold_out = [
             (trip_date, price) for trip_date, price in previous.items() if trip_date not in current
         ]
+
+        if markers or sold_out:
+            new_count = sum(1 for m in markers.values() if m == "🆕")
+            changed_count = len(markers) - new_count
+            log.info(
+                "%s: %d current, %d new, %d price change(s), %d sold out",
+                route_key(origin, destination), len(current), new_count, changed_count, len(sold_out),
+            )
 
         snapshots.append(RouteSnapshot(origin.display, destination.display, current, markers, sold_out))
         seen[key] = current
