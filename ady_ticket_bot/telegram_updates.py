@@ -61,6 +61,16 @@ def _call(token: str, method: str, **params) -> dict:
         params["parse_mode"] = "HTML"
     url = TELEGRAM_API.format(token=token, method=method)
     resp = requests.post(url, json=params, timeout=LONG_POLL_SECONDS + 10)
+    if not resp.ok:
+        try:
+            body = resp.json()
+        except ValueError:
+            body = {}
+        if resp.status_code == 400 and "not modified" in body.get("description", ""):
+            # Harmless: the button was pressed again with nothing new to show
+            # (e.g. logs unchanged since the last "Логи" click) - not an error.
+            return body
+        log.error("Telegram API %s failed (%d): %s", method, resp.status_code, resp.text)
     resp.raise_for_status()
     return resp.json()
 
