@@ -57,6 +57,8 @@ def _directions_panel(entry: dict) -> dict:
 
 
 def _call(token: str, method: str, **params) -> dict:
+    if method in ("sendMessage", "editMessageText") and "parse_mode" not in params:
+        params["parse_mode"] = "HTML"
     url = TELEGRAM_API.format(token=token, method=method)
     resp = requests.post(url, json=params, timeout=LONG_POLL_SECONDS + 10)
     resp.raise_for_status()
