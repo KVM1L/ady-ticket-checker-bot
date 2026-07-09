@@ -49,3 +49,8 @@ class Config:
     # a system-installed Google Chrome instead (useful where Playwright's own
     # download CDN is geo-blocked) - see README.
     browser_channel: str = field(default_factory=lambda: os.environ.get("PLAYWRIGHT_CHANNEL", "").strip() or None)
+
+    @property
+    def admin_chat_id(self) -> str | None:
+        """Who /admin is restricted to - reuses TELEGRAM_CHAT_ID, the bot owner's chat."""
+        return self.telegram_chat_id

@@ -5,6 +5,7 @@ import random
 import threading
 import time
 
+from . import admin
 from .checker import check_for_new_tickets
 from .config import Config
 from .notifier import notify_subscribers
@@ -36,7 +37,7 @@ def run_subscriber_listener(config: Config) -> None:
     log = logging.getLogger(__name__)
     while True:
         try:
-            poll_updates_once(config.telegram_bot_token, config.subscribers_file)
+            poll_updates_once(config)
         except Exception:
             log.exception("Subscriber listener error, retrying shortly")
             time.sleep(5)
@@ -58,6 +59,7 @@ def main() -> None:
     setup_logging(config.log_file)
     log = logging.getLogger(__name__)
     seed_owner_subscription(config)
+    admin.sync_command_menu(config)
 
     if args.once:
         run_once(config)
