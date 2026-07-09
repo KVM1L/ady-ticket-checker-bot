@@ -83,7 +83,7 @@ def _handle_admin_callback(config: Config, token: str, chat_id: str, message: di
             reply_markup=admin.ADMIN_PANEL,
         )
     elif data == "admin:close":
-        _call(token, "editMessageReplyMarkup", chat_id=chat_id, message_id=message_id, reply_markup={"inline_keyboard": []})
+        _call(token, "deleteMessage", chat_id=chat_id, message_id=message_id)
 
 
 def _handle_callback(config: Config, callback_query: dict, subscribers: dict) -> bool:
@@ -131,10 +131,7 @@ def _handle_callback(config: Config, callback_query: dict, subscribers: dict) ->
         elif data == "filter:close":
             message_id = message.get("message_id")
             if message_id is not None:
-                _call(
-                    token, "editMessageReplyMarkup", chat_id=chat_id, message_id=message_id,
-                    reply_markup={"inline_keyboard": []},
-                )
+                _call(token, "deleteMessage", chat_id=chat_id, message_id=message_id)
         elif data == "filter:menu:directions":
             message_id = message.get("message_id")
             if message_id is not None:
