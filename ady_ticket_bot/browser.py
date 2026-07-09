@@ -33,6 +33,7 @@ def fetch_trip_dates(page: Page, origin: Station, destination: Station) -> list[
     Returns a list of {"trip_date": "DD-MM-YYYY", "min_amount": "88.49"} dicts,
     or [] if the route currently has no bookable dates.
     """
+    log.debug("Navigating to %s for %s -> %s", HOME_URL, origin.name, destination.name)
     page.goto(HOME_URL, wait_until="load", timeout=60000)
 
     # The fixed header and the full-page loading overlay both sit on top of
@@ -54,10 +55,12 @@ def fetch_trip_dates(page: Page, origin: Station, destination: Station) -> list[
     # instead of a fixed sleep, generously covering the site's own quoted
     # wait estimate (it's usually a couple of minutes).
     origin_group.locator("input").wait_for(state="visible", timeout=180000)
+    log.debug("Form ready, selecting origin %s", origin.name)
 
     origin_group.locator("input").click(timeout=15000)
     origin_group.locator(f"button:has-text('{origin.name}')").first.click(timeout=15000)
 
+    log.debug("Selecting destination %s", destination.name)
     destination_group.locator("input").click(timeout=15000)
     with page.expect_response(
         lambda r: "ticket-api/get_trip_dates" in r.url, timeout=20000
@@ -68,12 +71,14 @@ def fetch_trip_dates(page: Page, origin: Station, destination: Station) -> list[
     payload = response.json()
 
     if payload.get("error"):
+        log.debug("get_trip_dates: no data for %s -> %s", origin.name, destination.name)
         return []
 
     data = payload.get("data") or {}
     dates = []
     for entries in data.values():
         dates.extend(entries)
+    log.debug("get_trip_dates: %d date(s) for %s -> %s", len(dates), origin.name, destination.name)
     return dates
 
 
@@ -81,6 +86,8 @@ def run_check(config: Config, routes) -> dict:
     """Runs fetch_trip_dates for every (origin, destination) pair in routes.
     Returns {(origin.name, destination.name): [ {trip_date, min_amount}, ... ]}.
     """
+    log.info("Starting check for %d route(s)", len(routes))
+    started = time.monotonic()
     results = {}
     with sync_playwright() as playwright:
         context = open_context(playwright, config)
@@ -92,6 +99,9 @@ def run_check(config: Config, routes) -> dict:
                 for attempt in range(attempts):
                     try:
                         dates = fetch_trip_dates(page, origin, destination)
+                        log.info(
+                            "%s -> %s: %d bookable date(s)", origin.name, destination.name, len(dates),
+                        )
                         break
                     except Exception:
                         log.warning(
@@ -100,7 +110,10 @@ def run_check(config: Config, routes) -> dict:
                         )
                         if attempt < attempts - 1:
                             time.sleep(10)
+                if dates is None:
+                    log.error("Giving up on %s -> %s this cycle after %d attempt(s)", origin.name, destination.name, attempts)
                 results[(origin.name, destination.name)] = dates
         finally:
             context.close()
+    log.info("Check finished in %.1fs", time.monotonic() - started)
     return results
