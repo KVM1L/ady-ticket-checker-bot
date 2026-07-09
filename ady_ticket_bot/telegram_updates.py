@@ -3,7 +3,8 @@ import logging
 
 import requests
 
-from .config import ROUTES
+from . import admin
+from .config import Config, ROUTES
 from .filters import Filter
 from .subscribers import load_offset, load_subscribers, save_offset, save_subscribers
 
@@ -62,7 +63,29 @@ def _call(token: str, method: str, **params) -> dict:
     return resp.json()
 
 
-def _handle_callback(token: str, callback_query: dict, subscribers: dict) -> bool:
+def _handle_admin_callback(config: Config, token: str, chat_id: str, message: dict, data: str) -> None:
+    message_id = message.get("message_id")
+    if message_id is None:
+        return
+
+    if data == "admin:users":
+        _call(
+            token, "editMessageText", chat_id=chat_id, message_id=message_id,
+            text=admin.format_users_list(config.subscribers_file),
+            reply_markup=admin.ADMIN_PANEL,
+        )
+    elif data == "admin:logs":
+        _call(
+            token, "editMessageText", chat_id=chat_id, message_id=message_id,
+            text=admin.format_logs_excerpt(config.log_file),
+            reply_markup=admin.ADMIN_PANEL,
+        )
+    elif data == "admin:close":
+        _call(token, "editMessageReplyMarkup", chat_id=chat_id, message_id=message_id, reply_markup={"inline_keyboard": []})
+
+
+def _handle_callback(config: Config, callback_query: dict, subscribers: dict) -> bool:
+    token = config.telegram_bot_token
     callback_id = callback_query["id"]
     message = callback_query.get("message") or {}
     chat_id = message.get("chat", {}).get("id")
@@ -72,6 +95,13 @@ def _handle_callback(token: str, callback_query: dict, subscribers: dict) -> boo
 
     if chat_id is not None:
         chat_id = str(chat_id)
+
+        if data.startswith("admin:"):
+            if admin.is_admin(chat_id, config):
+                _handle_admin_callback(config, token, chat_id, message, data)
+            _call(token, "answerCallbackQuery", callback_query_id=callback_id)
+            return False
+
         entry = subscribers.setdefault(chat_id, {})
 
         if data == "filter:ask:price":
@@ -204,10 +234,12 @@ def _handle_pending_reply(token: str, chat_id: str, entry: dict, text: str) -> N
     _call(token, "sendMessage", chat_id=chat_id, text=reply, **kwargs)
 
 
-def poll_updates_once(token: str, subscribers_file: str) -> None:
+def poll_updates_once(config: Config) -> None:
     """Blocks up to LONG_POLL_SECONDS waiting for new Telegram updates, then
     processes any commands / button presses / filter-value replies found.
     """
+    token = config.telegram_bot_token
+    subscribers_file = config.subscribers_file
     offset = load_offset(subscribers_file)
     result = _call(
         token,
@@ -228,7 +260,7 @@ def poll_updates_once(token: str, subscribers_file: str) -> None:
         next_offset = update["update_id"] + 1
 
         if "callback_query" in update:
-            if _handle_callback(token, update["callback_query"], subscribers):
+            if _handle_callback(config, update["callback_query"], subscribers):
                 changed = True
             continue
 
@@ -274,6 +306,11 @@ def poll_updates_once(token: str, subscribers_file: str) -> None:
             )
         elif command == "/help":
             _call(token, "sendMessage", chat_id=chat_id, text=HELP_TEXT)
+        elif command == "/admin":
+            if not admin.is_admin(chat_id, config):
+                _call(token, "sendMessage", chat_id=chat_id, text="⛔ Эта команда доступна только администратору.")
+                continue
+            _call(token, "sendMessage", chat_id=chat_id, text="Админ-панель:", reply_markup=admin.ADMIN_PANEL)
 
     if changed:
         save_subscribers(subscribers_file, subscribers)
