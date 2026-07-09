@@ -59,11 +59,12 @@ def format_users_list(subscribers_file: str) -> str:
     if not subscribers:
         return "Подписчиков пока нет."
 
-    lines = [f"👥 <b>Подписчики ({len(subscribers)}):</b>"]
-    for i, (chat_id, entry) in enumerate(sorted(subscribers.items()), start=1):
-        filt = Filter.from_dict(entry)
-        lines.append(f"\n{i}) <code>{chat_id}</code>\n{filt.describe()}")
-    return "\n".join(lines)
+    rows = []
+    for chat_id, entry in sorted(subscribers.items()):
+        filt = Filter.from_dict(entry).describe().replace("\n", "; ")
+        rows.append(f"{chat_id:<12} {filt}")
+
+    return f"👥 <b>Подписчики ({len(subscribers)})</b>\n<pre>{html.escape(chr(10).join(rows))}</pre>"
 
 
 def format_logs_excerpt(log_file: str) -> str:
@@ -79,4 +80,4 @@ def format_logs_excerpt(log_file: str) -> str:
     if not tail.strip():
         return "Лог пуст."
 
-    return f"📜 <b>Последние строки лога:</b>\n<pre>{html.escape(tail)}</pre>"
+    return f"📜 <b>Последние строки лога</b>\n<pre>{html.escape(tail)}</pre>"
