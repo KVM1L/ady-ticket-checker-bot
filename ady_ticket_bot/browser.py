@@ -85,6 +85,16 @@ def fetch_trip_dates(page: Page, origin: Station, destination: Station) -> list[
     response = resp_info.value
     payload = response.json()
 
+    try:
+        confirmed = json.loads(response.request.post_data or "{}")
+    except (ValueError, TypeError):
+        confirmed = {}
+    log.info(
+        "get_trip_dates confirmed request: intended %s(%s) -> %s(%s), actually sent from_station=%s to_station=%s",
+        origin.name, origin.id, destination.name, destination.id,
+        confirmed.get("from_station"), confirmed.get("to_station"),
+    )
+
     if payload.get("error"):
         log.debug("get_trip_dates: no data for %s -> %s", origin.name, destination.name)
         return []
