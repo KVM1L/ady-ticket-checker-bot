@@ -1,5 +1,6 @@
 import json
 import logging
+import random
 import time
 
 from playwright.sync_api import BrowserContext, Page, sync_playwright
@@ -24,6 +25,23 @@ def open_context(playwright, config: Config) -> BrowserContext:
     if config.browser_channel:
         kwargs["channel"] = config.browser_channel
     return playwright.chromium.launch_persistent_context(config.browser_profile_dir, **kwargs)
+
+
+def _bust_cache(route):
+    """Force every get_trip_dates request to be unique and uncacheable.
+
+    Both directions POST to the exact same URL, differing only in body -
+    if anything between us and the origin server (a misconfigured CDN
+    cache rule, for example) keys its cache by URL alone, one route's
+    response could get served back for the other. A random query param
+    changes the URL every time, and the no-cache headers ask any
+    standards-compliant layer not to reuse a stored response at all.
+    """
+    request = route.request
+    sep = "&" if "?" in request.url else "?"
+    busted_url = f"{request.url}{sep}_cb={random.randint(1, 2_000_000_000)}"
+    headers = {**request.headers, "cache-control": "no-cache", "pragma": "no-cache"}
+    route.continue_(url=busted_url, headers=headers)
 
 
 def _is_response_for(response, from_id: int, to_id: int) -> bool:
@@ -118,6 +136,7 @@ def run_check(config: Config, routes) -> dict:
         context = open_context(playwright, config)
         try:
             page = context.new_page()
+            page.route("**/ticket-api/get_trip_dates*", _bust_cache)
             for origin, destination in routes:
                 dates = None
                 attempts = 2
