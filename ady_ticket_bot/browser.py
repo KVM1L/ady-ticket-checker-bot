@@ -1,3 +1,4 @@
+import json
 import logging
 import time
 
@@ -23,6 +24,20 @@ def open_context(playwright, config: Config) -> BrowserContext:
     if config.browser_channel:
         kwargs["channel"] = config.browser_channel
     return playwright.chromium.launch_persistent_context(config.browser_profile_dir, **kwargs)
+
+
+def _is_response_for(response, from_id: int, to_id: int) -> bool:
+    """Match not just the URL but the actual request payload - a stale
+    get_trip_dates response for a *different* route (e.g. one still
+    in flight from the previous fetch_trip_dates call on this same page)
+    would otherwise be indistinguishable from the one we're waiting for."""
+    if "ticket-api/get_trip_dates" not in response.url:
+        return False
+    try:
+        payload = json.loads(response.request.post_data or "")
+    except (ValueError, TypeError):
+        return False
+    return payload.get("from_station") == from_id and payload.get("to_station") == to_id
 
 
 def fetch_trip_dates(page: Page, origin: Station, destination: Station) -> list[dict]:
@@ -63,7 +78,7 @@ def fetch_trip_dates(page: Page, origin: Station, destination: Station) -> list[
     log.debug("Selecting destination %s", destination.name)
     destination_group.locator("input").click(timeout=15000)
     with page.expect_response(
-        lambda r: "ticket-api/get_trip_dates" in r.url, timeout=20000
+        lambda r: _is_response_for(r, origin.id, destination.id), timeout=20000
     ) as resp_info:
         destination_group.locator(f"button:has-text('{destination.name}')").first.click(timeout=15000)
 
