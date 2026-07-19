@@ -67,7 +67,14 @@ def check_for_new_tickets(config: Config) -> list[RouteSnapshot]:
                 continue
             if parsed < today or parsed > horizon:
                 continue  # outside the window we care about - don't track it either way
-            current[trip_date] = entry.get("min_amount")
+
+            # The site's "data" object can have multiple keys for one route
+            # (different train services running the same day), each with its
+            # own price for the same date - keep the cheapest, matching what
+            # the site's own calendar shows.
+            price = entry.get("min_amount")
+            if trip_date not in current or float(price) < float(current[trip_date]):
+                current[trip_date] = price
 
         markers = {}
         for trip_date, price in current.items():
