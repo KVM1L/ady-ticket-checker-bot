@@ -94,6 +94,9 @@ def fetch_trip_dates(page: Page, origin: Station, destination: Station) -> list[
         origin.name, origin.id, destination.name, destination.id,
         confirmed.get("from_station"), confirmed.get("to_station"),
     )
+    # Full raw body, so a mismatch can be diagnosed from facts instead of
+    # guesswork if this route ever again shows dates that don't match reality.
+    log.info("get_trip_dates raw response body for %s -> %s: %s", origin.name, destination.name, payload)
 
     if payload.get("error"):
         log.debug("get_trip_dates: no data for %s -> %s", origin.name, destination.name)
