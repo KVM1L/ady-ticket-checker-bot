@@ -102,10 +102,13 @@ def fetch_trip_dates(page: Page, origin: Station, destination: Station) -> list[
         log.debug("get_trip_dates: no data for %s -> %s", origin.name, destination.name)
         return []
 
+    # The response bundles BOTH directions for calendar-widget convenience:
+    # key "1" is the way we actually asked for (from_station -> to_station,
+    # matching the "way": 1 we send), key "2" (when present) is the reverse
+    # direction's data. Only "1" belongs to this call - including "2" here
+    # would silently mix the other direction's dates/prices into this route.
     data = payload.get("data") or {}
-    dates = []
-    for entries in data.values():
-        dates.extend(entries)
+    dates = data.get("1", [])
     log.debug("get_trip_dates: %d date(s) for %s -> %s", len(dates), origin.name, destination.name)
     return dates
 
