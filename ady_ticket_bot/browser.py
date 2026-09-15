@@ -2,24 +2,26 @@ import json
 import logging
 import time
 
-from playwright.sync_api import BrowserContext, Page, sync_playwright
+from patchright.sync_api import BrowserContext, Page, sync_playwright
 
 from .config import Config, Station
 
 log = logging.getLogger(__name__)
 
 HOME_URL = "https://ticket.ady.az/"
-USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-)
 
 
 def open_context(playwright, config: Config) -> BrowserContext:
+    # get_trip_dates is gated by Cloudflare Turnstile, which withholds its
+    # token from anything that looks automated. What gets a token: patchright
+    # (Playwright with the automation leaks patched out), real Chrome, a
+    # visible window (headless never gets past Cloudflare), and no spoofed
+    # user agent or viewport - one that disagrees with the real browser is
+    # itself a bot signal.
     kwargs = dict(
         headless=config.headless,
-        user_agent=USER_AGENT,
-        viewport={"width": 1280, "height": 800},
+        no_viewport=True,
+        args=["--window-size=1280,900"],
     )
     if config.browser_channel:
         kwargs["channel"] = config.browser_channel
@@ -97,6 +99,16 @@ def fetch_trip_dates(page: Page, origin: Station, destination: Station) -> list[
     # Full raw body, so a mismatch can be diagnosed from facts instead of
     # guesswork if this route ever again shows dates that don't match reality.
     log.info("get_trip_dates raw response body for %s -> %s: %s", origin.name, destination.name, payload)
+
+    # A rejected captcha comes back as HTTP 422 {"error": true, "message":
+    # "ReCaptcha validation failed"} - the same "error" flag as a route that
+    # genuinely has no dates. Treating it as "no dates" would announce every
+    # known date as sold out and wipe the state, so it must be a fetch failure.
+    message = str(payload.get("message") or "")
+    if not response.ok or "captcha" in message.lower():
+        raise RuntimeError(
+            f"get_trip_dates rejected for {origin.name} -> {destination.name}: HTTP {response.status} {message!r}"
+        )
 
     if payload.get("error"):
         log.debug("get_trip_dates: no data for %s -> %s", origin.name, destination.name)

@@ -41,9 +41,15 @@
 бот заполняет только Haradan/Haraya через настоящий браузер (Playwright)
 и никогда не нажимает "Axtar".
 
-Каждый такой запрос требует токен invisible reCAPTCHA, который сайт
-генерирует сам в браузере — поэтому дергать API напрямую (через `requests`)
-не получится, нужен настоящий (пусть и headless) браузер.
+Каждый такой запрос требует одноразовый токен Cloudflare Turnstile (до
+сентября 2026 — invisible reCAPTCHA), который сайт генерирует сам в
+браузере, поэтому дергать API напрямую (через `requests`) не получится.
+Turnstile не выдаёт токен браузеру, который выглядит автоматизированным,
+поэтому бот использует `patchright` (Playwright с убранными признаками
+автоматизации), настоящий Google Chrome и видимое окно без подмены
+User-Agent. В headless-режиме Cloudflare не пускает даже на главную
+страницу; на сервере без монитора окно открывается в виртуальном дисплее
+`xvfb-run`.
 
 ## Установка
 
@@ -51,9 +57,10 @@
 python -m venv .venv
 source .venv/Scripts/activate   # Windows (Git Bash) / на Linux: source .venv/bin/activate
 pip install -r requirements.txt
-python -m playwright install --with-deps chromium
 cp .env.example .env
 ```
+
+Нужен установленный Google Chrome (на Linux-сервере — см. раздел про systemd).
 
 Заполните `.env`:
 
@@ -64,7 +71,7 @@ cp .env.example .env
 - `POLL_INTERVAL_MINUTES` / `POLL_JITTER_MINUTES` — как часто опрашивать (по
   умолчанию раз в ~5 минут, со случайным разбросом +/-1 минута, чтобы не
   долбить сайт строго по таймеру). Учтите: чем чаще опрос, тем больше
-  headless-браузер грузит сайт под Cloudflare — при проблемах с блокировкой
+  браузер грузит сайт под Cloudflare — при проблемах с блокировкой
   первым делом увеличьте это значение.
 - `LOOKAHEAD_DAYS` — горизонт в днях (по умолчанию 60 — те самые "два месяца").
 
@@ -90,6 +97,9 @@ Cloudflare реже видит "нового" посетителя при каж
 ## Работа в фоне на сервере (systemd)
 
 ```bash
+sudo apt-get install -y xvfb
+wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -O /tmp/chrome.deb
+sudo apt-get install -y /tmp/chrome.deb   # тянет зависимости из уже настроенных репозиториев
 sudo useradd --system --create-home ady-bot
 sudo mkdir -p /opt/ady-ticket-checker-bot
 sudo cp -r . /opt/ady-ticket-checker-bot
@@ -97,36 +107,23 @@ sudo chown -R ady-bot:ady-bot /opt/ady-ticket-checker-bot
 cd /opt/ady-ticket-checker-bot
 sudo -u ady-bot python3 -m venv .venv
 sudo -u ady-bot .venv/bin/pip install -r requirements.txt
-sudo -u ady-bot .venv/bin/python -m playwright install --with-deps chromium
 sudo cp deploy/ady-ticket-bot.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now ady-ticket-bot
 sudo journalctl -u ady-ticket-bot -f
 ```
 
-Если используете `PLAYWRIGHT_CHANNEL=chrome` (см. ниже) — шаг
-`playwright install --with-deps chromium` не нужен, Chrome должен быть
-установлен системно (через apt/`.deb`), а не через сам Playwright.
+Юнит запускает бота через `xvfb-run`: Chrome нужен видимый (пусть и
+виртуальный) экран, чтобы пройти Turnstile. В `.env` должно быть
+`HEADLESS=false` и `PLAYWRIGHT_CHANNEL=chrome` (или просто без этих строк).
 
-## Если Playwright не может скачать Chromium (гео-блок CDN)
-
-`playwright install` качает браузер с `cdn.playwright.dev`, и в некоторых
-странах/у некоторых хостеров этот CDN отвечает `403 Access denied ... not
-available in your location`. Обход — использовать системный Google Chrome
-вместо бандла Playwright:
+Разовая проверка на сервере вручную (сервис на это время остановите — два
+Chrome не могут одновременно работать с одним профилем):
 
 ```bash
-wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -O /tmp/chrome.deb
-sudo apt-get install -y /tmp/chrome.deb   # тянет зависимости из уже настроенных репозиториев
+cd /opt/ady-ticket-checker-bot
+sudo -u ady-bot xvfb-run --auto-servernum .venv/bin/python -m ady_ticket_bot.main --once
 ```
-
-Затем в `.env` укажите:
-
-```
-PLAYWRIGHT_CHANNEL=chrome
-```
-
-Бот подхватит системный Chrome вместо попытки скачать свой Chromium.
 
 ## Заметки
 

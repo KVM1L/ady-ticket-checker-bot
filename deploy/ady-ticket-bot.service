@@ -8,7 +8,9 @@ Type=simple
 User=ady-bot
 WorkingDirectory=/opt/ady-ticket-checker-bot
 EnvironmentFile=/opt/ady-ticket-checker-bot/.env
-ExecStart=/opt/ady-ticket-checker-bot/.venv/bin/python -m ady_ticket_bot.main
+# Chrome needs a visible window to pass the site's Turnstile check;
+# xvfb-run gives it a virtual display on a headless server.
+ExecStart=/usr/bin/xvfb-run --auto-servernum "--server-args=-screen 0 1920x1080x24" /opt/ady-ticket-checker-bot/.venv/bin/python -m ady_ticket_bot.main
 Restart=on-failure
 RestartSec=30
 

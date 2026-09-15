@@ -40,15 +40,16 @@ class Config:
     poll_interval_minutes: int = field(default_factory=lambda: int(os.environ.get("POLL_INTERVAL_MINUTES", "30")))
     poll_jitter_minutes: int = field(default_factory=lambda: int(os.environ.get("POLL_JITTER_MINUTES", "5")))
     lookahead_days: int = field(default_factory=lambda: int(os.environ.get("LOOKAHEAD_DAYS", "60")))
-    headless: bool = field(default_factory=lambda: os.environ.get("HEADLESS", "true").lower() != "false")
+    # Headless Chrome never gets past the site's Cloudflare/Turnstile checks,
+    # so the default is a visible window (on a server: inside xvfb-run).
+    headless: bool = field(default_factory=lambda: os.environ.get("HEADLESS", "false").lower() != "false")
     state_file: str = field(default_factory=lambda: os.environ.get("STATE_FILE", os.path.join(BASE_DIR, "data", "state.json")))
     subscribers_file: str = field(default_factory=lambda: os.environ.get("SUBSCRIBERS_FILE", os.path.join(BASE_DIR, "data", "subscribers.json")))
     browser_profile_dir: str = field(default_factory=lambda: os.environ.get("BROWSER_PROFILE_DIR", os.path.join(BASE_DIR, "data", "browser_profile")))
     log_file: str = field(default_factory=lambda: os.environ.get("LOG_FILE", os.path.join(BASE_DIR, "data", "ady_ticket_bot.log")))
-    # Leave empty to use Playwright's bundled Chromium. Set to "chrome" to use
-    # a system-installed Google Chrome instead (useful where Playwright's own
-    # download CDN is geo-blocked) - see README.
-    browser_channel: str = field(default_factory=lambda: os.environ.get("PLAYWRIGHT_CHANNEL", "").strip() or None)
+    # System-installed Google Chrome by default - it's what reliably passes
+    # Turnstile. Set to "chromium" for patchright's bundled Chromium instead.
+    browser_channel: str = field(default_factory=lambda: os.environ.get("PLAYWRIGHT_CHANNEL", "").strip() or "chrome")
 
     @property
     def admin_chat_id(self) -> str | None:
