@@ -37,8 +37,9 @@ class Config:
     # they don't have to /start their own bot. Anyone else subscribes by
     # sending /start to the bot in Telegram.
     telegram_chat_id: str | None = field(default_factory=lambda: os.environ.get("TELEGRAM_CHAT_ID", "").strip() or None)
-    poll_interval_minutes: int = field(default_factory=lambda: int(os.environ.get("POLL_INTERVAL_MINUTES", "30")))
-    poll_jitter_minutes: int = field(default_factory=lambda: int(os.environ.get("POLL_JITTER_MINUTES", "5")))
+    # Fractions allowed, e.g. 0.5 for 30 seconds.
+    poll_interval_minutes: float = field(default_factory=lambda: float(os.environ.get("POLL_INTERVAL_MINUTES", "30")))
+    poll_jitter_minutes: float = field(default_factory=lambda: float(os.environ.get("POLL_JITTER_MINUTES", "5")))
     lookahead_days: int = field(default_factory=lambda: int(os.environ.get("LOOKAHEAD_DAYS", "60")))
     # Headless Chrome never gets past the site's Cloudflare/Turnstile checks,
     # so the default is a visible window (on a server: inside xvfb-run).

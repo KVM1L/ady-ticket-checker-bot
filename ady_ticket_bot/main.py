@@ -69,7 +69,7 @@ def main() -> None:
     listener.start()
 
     log.info(
-        "Starting poll loop: every %d (+/- %d) minutes, lookahead %d days, %d subscriber(s)",
+        "Starting poll loop: every %g (+/- %g) minutes, lookahead %d days, %d subscriber(s)",
         config.poll_interval_minutes,
         config.poll_jitter_minutes,
         config.lookahead_days,
@@ -82,7 +82,8 @@ def main() -> None:
             log.exception("Poll cycle failed")
 
         jitter = random.uniform(-config.poll_jitter_minutes, config.poll_jitter_minutes)
-        sleep_minutes = max(1.0, config.poll_interval_minutes + jitter)
+        # Floor at 30s - the shortest pause verified not to trip Cloudflare.
+        sleep_minutes = max(0.5, config.poll_interval_minutes + jitter)
         time.sleep(sleep_minutes * 60)
 
 
