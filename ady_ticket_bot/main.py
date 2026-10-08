@@ -6,6 +6,7 @@ import threading
 import time
 
 from . import admin
+from .browser import TicketSite
 from .checker import check_for_new_tickets
 from .config import Config
 from .notifier import notify_subscribers
@@ -43,9 +44,9 @@ def run_subscriber_listener(config: Config) -> None:
             time.sleep(5)
 
 
-def run_once(config: Config) -> None:
+def run_once(config: Config, site: TicketSite) -> None:
     log = logging.getLogger(__name__)
-    snapshots = check_for_new_tickets(config)
+    snapshots = check_for_new_tickets(config, site)
     sent = notify_subscribers(config.telegram_bot_token, config.subscribers_file, snapshots)
     log.info("Notified %d subscriber(s).", sent)
 
@@ -61,30 +62,34 @@ def main() -> None:
     seed_owner_subscription(config)
     admin.sync_command_menu(config)
 
-    if args.once:
-        run_once(config)
-        return
+    # One browser for the whole run, driven from this thread only (the
+    # listener thread never touches it).
+    with TicketSite(config) as site:
+        if args.once:
+            run_once(config, site)
+            return
 
-    listener = threading.Thread(target=run_subscriber_listener, args=(config,), daemon=True)
-    listener.start()
+        listener = threading.Thread(target=run_subscriber_listener, args=(config,), daemon=True)
+        listener.start()
 
-    log.info(
-        "Starting poll loop: every %g (+/- %g) minutes, lookahead %d days, %d subscriber(s)",
-        config.poll_interval_minutes,
-        config.poll_jitter_minutes,
-        config.lookahead_days,
-        len(load_subscribers(config.subscribers_file)),
-    )
-    while True:
-        try:
-            run_once(config)
-        except Exception:
-            log.exception("Poll cycle failed")
+        log.info(
+            "Starting poll loop: every %g (+/- %g) minutes, page reload every %g minutes, lookahead %d days, %d subscriber(s)",
+            config.poll_interval_minutes,
+            config.poll_jitter_minutes,
+            config.page_reload_minutes,
+            config.lookahead_days,
+            len(load_subscribers(config.subscribers_file)),
+        )
+        while True:
+            try:
+                run_once(config, site)
+            except Exception:
+                log.exception("Poll cycle failed")
 
-        jitter = random.uniform(-config.poll_jitter_minutes, config.poll_jitter_minutes)
-        # Floor at 30s - the shortest pause verified not to trip Cloudflare.
-        sleep_minutes = max(0.5, config.poll_interval_minutes + jitter)
-        time.sleep(sleep_minutes * 60)
+            jitter = random.uniform(-config.poll_jitter_minutes, config.poll_jitter_minutes)
+            # Floor at 30s - the shortest pause verified not to trip Cloudflare.
+            sleep_minutes = max(0.5, config.poll_interval_minutes + jitter)
+            time.sleep(sleep_minutes * 60)
 
 
 if __name__ == "__main__":

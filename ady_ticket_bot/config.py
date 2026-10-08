@@ -40,6 +40,9 @@ class Config:
     # Fractions allowed, e.g. 0.5 for 30 seconds.
     poll_interval_minutes: float = field(default_factory=lambda: float(os.environ.get("POLL_INTERVAL_MINUTES", "30")))
     poll_jitter_minutes: float = field(default_factory=lambda: float(os.environ.get("POLL_JITTER_MINUTES", "5")))
+    # The browser stays open on the site between polls and flips direction with
+    # the site's own swap button; the page itself is only reloaded this often.
+    page_reload_minutes: float = field(default_factory=lambda: float(os.environ.get("PAGE_RELOAD_MINUTES", "60")))
     lookahead_days: int = field(default_factory=lambda: int(os.environ.get("LOOKAHEAD_DAYS", "60")))
     # Headless Chrome never gets past the site's Cloudflare/Turnstile checks,
     # so the default is a visible window (on a server: inside xvfb-run).

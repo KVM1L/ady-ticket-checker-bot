@@ -2,7 +2,7 @@ import datetime
 import logging
 from dataclasses import dataclass, field
 
-from .browser import run_check
+from .browser import TicketSite, run_check
 from .config import Config, ROUTES
 from .state import load_seen, save_seen
 
@@ -33,13 +33,13 @@ def _parse_date(trip_date: str) -> datetime.date:
     return datetime.datetime.strptime(trip_date, "%d-%m-%Y").date()
 
 
-def check_for_new_tickets(config: Config) -> list[RouteSnapshot]:
+def check_for_new_tickets(config: Config, site: TicketSite) -> list[RouteSnapshot]:
     """Runs one full poll cycle and returns a snapshot per route: the current
     bookable dates within the lookahead window, which of them are new/changed
     since the last cycle, and which previously-seen dates disappeared (sold
     out). Callers apply their own per-subscriber filtering on top of this.
     """
-    results = run_check(config, ROUTES)
+    results = run_check(site, ROUTES)
     seen = load_seen(config.state_file)
     today = datetime.date.today()
     horizon = today + datetime.timedelta(days=config.lookahead_days)
